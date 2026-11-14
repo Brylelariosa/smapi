@@ -145,4 +145,51 @@ public class AssemblyLayoutProbeTest {
         assertEquals(1, names.size());
         assertEquals("Stardew Valley", names.get(0));
     }
+
+    @Test
+    public void decodesStoresAndJoinsManifestNames() throws Exception {
+        AssemblyLayout l = probe(SyntheticApk.deviceLike("1.6.15.0", false));
+        assertEquals(AssemblyLayout.Kind.STORE_BLOB, l.kind);
+        assertEquals(5, l.stores.size());
+        assertTrue(l.decodeProblems.isEmpty());
+        assertEquals(4, l.manifestRows.size());
+        // 3 shared + 4 stores x 1 arch assembly
+        assertEquals(7, l.entries.size());
+        for (AssemblyLayout.StoreFile s : l.stores) {
+            assertTrue(s.decodeSummary, s.decodeSummary.contains("assemblies decoded"));
+        }
+        java.util.List<AssemblyLayout.Entry> arm64 = l.entriesFor("arm64-v8a");
+        assertEquals(4, arm64.size());
+        AssemblyLayout.Entry sdv = null;
+        for (AssemblyLayout.Entry e : arm64) {
+            if ("Stardew Valley".equals(e.name)) {
+                sdv = e;
+            }
+        }
+        assertTrue(sdv != null && sdv.isCompressed());
+        assertEquals(9000, sdv.uncompressedSize);
+        assertEquals(300, sdv.dataSize);
+        assertTrue(l.hasAssembly("Stardew Valley"));
+    }
+
+    @Test
+    public void archStoresAreChosenByAbiAndNeverDoubleCounted() throws Exception {
+        AssemblyLayout l = probe(SyntheticApk.deviceLike("1.6.15.0", false));
+        java.util.List<AssemblyLayout.Entry> x86 = l.entriesFor("x86");
+        java.util.List<AssemblyLayout.Entry> arm64 = l.entriesFor("arm64-v8a");
+        java.util.List<AssemblyLayout.Entry> unknown = l.entriesFor(null);
+        assertEquals(4, x86.size());
+        assertEquals(4, arm64.size());
+        assertEquals(4, unknown.size());
+        assertEquals("assemblies/assemblies.x86.blob", x86.get(3).storeFile);
+        assertEquals("assemblies/assemblies.arm64_v8a.blob", unknown.get(3).storeFile);
+        assertEquals("assemblies/assemblies.arm64_v8a.blob", l.entriesFor("riscv64").get(3).storeFile);
+    }
+
+    @Test
+    public void manifestRowCountMismatchIsReported() throws Exception {
+        AssemblyLayout l = probe(SyntheticApk.deviceLike("1.6.15.0", true));
+        assertEquals(1, l.decodeProblems.size());
+        assertTrue(l.decodeProblems.get(0).contains("assemblies.manifest has 5 rows"));
+    }
 }

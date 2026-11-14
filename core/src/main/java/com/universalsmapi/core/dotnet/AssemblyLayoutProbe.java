@@ -62,6 +62,7 @@ public final class AssemblyLayoutProbe {
         for (ZipEntryInfo e : blobs) {
             AssemblyLayout.StoreFile sf = new AssemblyLayout.StoreFile(e.name, "raw-blob", e.size, e.isStored());
             readRawHeader(zip, e, sf, log);
+            decodeStore(zip, e, sf, out, log);
             out.stores.add(sf);
         }
         for (ZipEntryInfo e : elfStores) {
@@ -74,13 +75,17 @@ public final class AssemblyLayoutProbe {
             out.manifestPresent = true;
             try {
                 byte[] raw = zip.readAll(manifest, MANIFEST_LIMIT);
-                out.manifestNames.addAll(parseManifestNames(new String(raw, StandardCharsets.UTF_8)));
+                String text = new String(raw, StandardCharsets.UTF_8);
+                out.manifestRows.addAll(parseManifestRows(text));
+                out.manifestNames.addAll(parseManifestNames(text));
                 log.info(TAG, "assemblies.manifest lists " + out.manifestNames.size() + " assemblies");
             } catch (IOException ex) {
                 log.warn(TAG, "assemblies.manifest present but unreadable", ex);
                 out.notes.add("assemblies.manifest could not be read: " + ex.getMessage());
             }
         }
+
+        joinNames(out);
 
         boolean hasLoose = !loose.isEmpty();
         boolean hasBlob = !blobs.isEmpty();
@@ -175,6 +180,107 @@ public final class AssemblyLayoutProbe {
         sf.headerRead = true;
         sf.magicOk = sf.words[0] == STORE_MAGIC;
         sf.version = sf.words[1];
+    }
+
+    private static void decodeStore(ZipArchive zip, ZipEntryInfo e, AssemblyLayout.StoreFile sf, AssemblyLayout out, DiagnosticLog log) {
+        if (!sf.headerRead || !sf.magicOk) {
+            sf.decodeSummary = "not decoded (header unreadable or magic mismatch)";
+            return;
+        }
+        sf.localEntryCount = sf.words[2];
+        sf.globalEntryCount = sf.words[3];
+        sf.storeId = sf.words[4];
+        if (!e.isStored()) {
+            sf.decodeSummary = "not decoded (store is compressed inside the APK, so it cannot be read at random offsets)";
+            out.decodeProblems.add(sf.entryName + ": " + sf.decodeSummary);
+            return;
+        }
+        try (SeekableSource blob = zip.slice(e)) {
+            AssemblyStoreReader.StoreDecode d = AssemblyStoreReader.decode(blob, sf.entryName);
+            sf.decodeSummary = d.summary();
+            out.entries.addAll(d.entries);
+            if (d.problem != null) {
+                out.decodeProblems.add(sf.entryName + ": " + d.problem);
+                log.warn(TAG, "store decode problem: " + sf.entryName + ": " + d.problem);
+            } else {
+                log.info(TAG, sf.entryName + ": " + d.summary());
+            }
+        } catch (IOException ex) {
+            sf.decodeSummary = "decode failed: " + ex.getMessage();
+            out.decodeProblems.add(sf.entryName + ": " + sf.decodeSummary);
+            log.warn(TAG, "store decode failed: " + sf.entryName, ex);
+        }
+    }
+
+    /** Attach manifest names to decoded entries (matched on store id and index) and flag count mismatches. */
+    private static void joinNames(AssemblyLayout out) {
+        if (out.entries.isEmpty() || out.manifestRows.isEmpty()) {
+            return;
+        }
+        int unmatched = 0;
+        for (AssemblyLayout.Entry en : out.entries) {
+            for (AssemblyLayout.ManifestRow row : out.manifestRows) {
+                if (row.blobId == en.storeId && row.blobIndex == en.localIndex) {
+                    en.name = row.name;
+                    break;
+                }
+            }
+            if (en.name == null) {
+                unmatched++;
+            }
+        }
+        int shared = 0;
+        int largestArchGroup = 0;
+        java.util.Map<String, Integer> perArchFile = new java.util.LinkedHashMap<>();
+        for (AssemblyLayout.Entry en : out.entries) {
+            if (en.storeId == 0) {
+                shared++;
+            } else {
+                Integer n = perArchFile.get(en.storeFile);
+                perArchFile.put(en.storeFile, n == null ? 1 : n + 1);
+            }
+        }
+        for (Integer n : perArchFile.values()) {
+            largestArchGroup = Math.max(largestArchGroup, n);
+        }
+        int expected = shared + largestArchGroup;
+        if (unmatched > 0 || expected != out.manifestRows.size()) {
+            out.decodeProblems.add("decoded " + shared + " shared + " + largestArchGroup + " per-ABI assemblies but assemblies.manifest has "
+                    + out.manifestRows.size() + " rows (" + unmatched + " decoded entries had no matching row)");
+        }
+    }
+
+    /** Parse data rows of assemblies.manifest: {@code Hash32 Hash64 BlobId BlobIdx Name...}. */
+    static List<AssemblyLayout.ManifestRow> parseManifestRows(String text) {
+        List<AssemblyLayout.ManifestRow> rows = new ArrayList<>();
+        for (String line : text.split("\\r?\\n")) {
+            String t = line.trim();
+            if (t.isEmpty() || !t.startsWith("0x")) {
+                continue;
+            }
+            String[] tok = t.split("\\s+");
+            if (tok.length < 5) {
+                continue;
+            }
+            long blobId;
+            long blobIdx;
+            try {
+                blobId = Long.parseLong(tok[2]);
+                blobIdx = Long.parseLong(tok[3]);
+            } catch (NumberFormatException ex) {
+                blobId = -1;
+                blobIdx = -1;
+            }
+            StringBuilder name = new StringBuilder();
+            for (int i = 4; i < tok.length; i++) {
+                if (i > 4) {
+                    name.append(' ');
+                }
+                name.append(tok[i]);
+            }
+            rows.add(new AssemblyLayout.ManifestRow(blobId, blobIdx, AssemblyLayout.stripDll(name.toString())));
+        }
+        return rows;
     }
 
     /** Parse the human-readable assemblies.manifest table: {@code Hash32 Hash64 BlobId BlobIdx Name...}. */

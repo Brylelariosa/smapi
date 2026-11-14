@@ -54,7 +54,7 @@ public final class CompatResolver {
                 case NO_ANDROID_BUILD_CATALOGUED:
                     return "No Android SMAPI build catalogued for this version (nothing is claimed as compatible)";
                 case ANDROID_RELEASE_DOCUMENTED_UNVERIFIED:
-                    return "Android release documented but untested: " + androidRelease.smapiVersion;
+                    return "Android release documented but untested: SMAPI " + androidRelease.smapiVersion;
                 default:
                     return "Android release verified on a real installation: " + androidRelease.smapiVersion;
             }
@@ -117,7 +117,7 @@ public final class CompatResolver {
             } else {
                 boolean ok = game.version.compareTo(req.minGame) >= 0;
                 r.checks.add(new Check(who + ": game version at least " + req.minGame,
-                        ok ? CheckState.MET : CheckState.NOT_MET, "installed " + game.version));
+                        ok ? CheckState.MET : CheckState.NOT_MET, "installed " + game.display()));
             }
             if (req.requires64BitOs) {
                 r.checks.add(new Check(who + ": 64-bit device", device64Bit ? CheckState.MET : CheckState.NOT_MET,
@@ -136,6 +136,9 @@ public final class CompatResolver {
             }
         }
 
+        if (r.androidRelease != null) {
+            r.caveats.add("Android release row '" + r.androidRelease.name + "' comes from: " + r.androidRelease.evidence);
+        }
         r.caveats.add("Android SMAPI ports are separate builds from upstream SMAPI; upstream releases cannot run on Android as-is.");
         if (r.upstreamExact != null) {
             r.caveats.add("SMAPI's own table lists desktop release " + r.upstreamExact.smapi + " for game " + r.upstreamExact.game
@@ -160,6 +163,10 @@ public final class CompatResolver {
                 return "Galaxy Store";
             case "com.amazon.venezia":
                 return "Amazon Appstore";
+            case "com.google.android.packageinstaller":
+            case "com.android.packageinstaller":
+            case "com.samsung.android.packageinstaller":
+                return "Package installer (APK file)";
             default:
                 return installerPackage;
         }

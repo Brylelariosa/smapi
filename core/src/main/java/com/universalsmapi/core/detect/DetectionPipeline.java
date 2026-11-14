@@ -112,7 +112,7 @@ public final class DetectionPipeline {
         }
         if (fromPkg != null && fromManifest != null && fromPkg.version.compareTo(fromManifest.version) != 0) {
             rep.findings.add(new Finding(Finding.Severity.WARN, "VERSION_MISMATCH",
-                    "PackageManager says " + fromPkg + " but the APK manifest says " + fromManifest
+                    "PackageManager says " + fromPkg.display() + " but the APK manifest says " + fromManifest.display()
                             + ". The APK that was read may not be the one that is installed."));
         }
     }
@@ -210,9 +210,23 @@ public final class DetectionPipeline {
                             s.entryName + ": does not start with the XABA assembly-store magic."));
                 } else {
                     rep.findings.add(new Finding(Finding.Severity.INFO, "STORE_FORMAT",
-                            s.entryName + ": assembly store version " + s.version + ", header words "
-                                    + s.wordsText()));
+                            s.entryName + ": assembly store version " + s.version + "; " + s.decodeSummary
+                                    + "; header words " + s.wordsText()));
                 }
+            }
+            java.util.List<AssemblyLayout.Entry> mapped = l.entriesFor(rep.architecture.installedAbi);
+            if (!mapped.isEmpty()) {
+                int xalz = 0;
+                for (AssemblyLayout.Entry en : mapped) {
+                    if (en.isCompressed()) {
+                        xalz++;
+                    }
+                }
+                rep.findings.add(new Finding(Finding.Severity.INFO, "ASSEMBLY_COMPRESSION",
+                        xalz + " of " + mapped.size() + " assemblies are LZ4-compressed (XALZ); sizes are in the report."));
+            }
+            for (String problem : l.decodeProblems) {
+                rep.findings.add(new Finding(Finding.Severity.WARN, "STORE_DECODE_PROBLEM", problem));
             }
             if (l.looseXalzCompressed > 0) {
                 rep.findings.add(new Finding(Finding.Severity.INFO, "ASSEMBLIES_LZ4_COMPRESSED",
@@ -244,7 +258,7 @@ public final class DetectionPipeline {
             rep.findings.add(new Finding(Finding.Severity.WARN, "GAME_VERSION_UNKNOWN", "Game version could not be determined."));
         } else if (rep.compat.status == CompatResolver.Status.NO_ANDROID_BUILD_CATALOGUED) {
             rep.findings.add(new Finding(Finding.Severity.INFO, "NO_ANDROID_BUILD",
-                    "No Android SMAPI build is catalogued for " + rep.gameVersion + "; nothing is claimed as compatible."));
+                    "No Android SMAPI build is catalogued for " + rep.gameVersion.display() + "; nothing is claimed as compatible."));
         }
         for (CompatResolver.Check c : rep.compat.checks) {
             if (c.state == CompatResolver.CheckState.NOT_MET) {

@@ -40,4 +40,13 @@ public class GameVersionTest {
         assertEquals("1.6.15.0", g.raw);
         assertTrue(g.version.compareTo(GameVersion.parse("1.6.15.1").version) < 0);
     }
+
+    @Test
+    public void displayKeepsAPlatformReleaseOfZero() {
+        assertEquals("1.6.15", GameVersion.parse("1.6.15.0").toString()); // SMAPI's own ToString drops it
+        assertEquals("1.6.15.0", GameVersion.parse("1.6.15.0").display());
+        assertEquals("1.6.15.1", GameVersion.parse("1.6.15.1").display());
+        assertEquals("1.6.15", GameVersion.parse("1.6.15").display());
+        assertEquals("1.1.1", GameVersion.parse("1.11").display());
+    }
 }

@@ -206,7 +206,7 @@ private fun InstallationCard(report: InstallationReport, vm: LauncherViewModel) 
             Text(report.title(), style = MaterialTheme.typography.titleMedium)
             report.pkg?.let { Text(it.packageName, style = MaterialTheme.typography.bodySmall, color = muted) }
 
-            Text(report.gameVersion?.toString() ?: "Version not understood", style = MaterialTheme.typography.headlineMedium)
+            Text(report.gameVersion?.display() ?: "Version not understood", style = MaterialTheme.typography.headlineMedium)
             report.gameVersionSource?.let { Text("from $it", style = MaterialTheme.typography.bodySmall, color = muted) }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))

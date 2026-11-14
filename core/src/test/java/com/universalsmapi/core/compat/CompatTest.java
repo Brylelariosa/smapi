@@ -42,7 +42,9 @@ public class CompatTest {
         assertTrue(d.upstreamReferencedAssemblies.contains("Stardew Valley"));
         assertTrue(d.upstreamReferencedAssemblies.contains("MonoGame.Framework"));
         assertTrue(d.upstreamGameAssemblyAliases.contains("StardewValley"));
-        assertTrue(d.androidReleases.isEmpty());
+        assertEquals(1, d.androidReleases.size());
+        assertEquals("4.1.10.3", d.androidReleases.get(0).smapiVersion.toString());
+        assertEquals(CompatDatabase.Verification.DOCUMENTED_UNVERIFIED, d.androidReleases.get(0).verification);
         assertEquals(1, d.androidRequirements.size());
         assertEquals(CompatDatabase.Verification.DOCUMENTED_UNVERIFIED, d.androidRequirements.get(0).verification);
     }
@@ -79,6 +81,33 @@ public class CompatTest {
         assertEquals(CheckState.MET, state(r, "installed from"));
         assertTrue(r.headline().contains("nothing is claimed"));
         assertFalse(r.caveats.isEmpty());
+    }
+
+    @Test
+    public void gameBuildFromThePhoneReportGetsADocumentedButUntestedAndroidRelease() throws Exception {
+        Resolution r = new CompatResolver(db()).resolve(GameVersion.parse("1.6.15.0"), true, "com.google.android.packageinstaller");
+        assertEquals(Status.ANDROID_RELEASE_DOCUMENTED_UNVERIFIED, r.status);
+        assertEquals("4.1.10.3", r.androidRelease.smapiVersion.toString());
+        assertTrue(r.headline().contains("documented but untested"));
+        assertFalse(r.headline().toLowerCase().contains("compatible"));
+        assertEquals(CheckState.NOT_MET, state(r, "at least 1.6.15.1"));
+        assertEquals(CheckState.NOT_MET, state(r, "installed from"));
+        boolean mentionsInstaller = false;
+        boolean mentionsDisplay = false;
+        for (Check c : r.checks) {
+            mentionsInstaller |= c.detail.contains("Package installer (APK file)");
+            mentionsDisplay |= c.detail.contains("installed 1.6.15.0");
+        }
+        assertTrue(mentionsInstaller);
+        assertTrue(mentionsDisplay);
+        boolean evidence = false;
+        for (String caveat : r.caveats) {
+            evidence |= caveat.contains("bilibili.com");
+        }
+        assertTrue(evidence);
+        // the documented row is exact: neighbouring builds are not covered
+        assertEquals(Status.NO_ANDROID_BUILD_CATALOGUED, new CompatResolver(db()).resolve(GameVersion.parse("1.6.15.1"), true, null).status);
+        assertEquals(Status.NO_ANDROID_BUILD_CATALOGUED, new CompatResolver(db()).resolve(GameVersion.parse("1.6.14.0"), true, null).status);
     }
 
     @Test
@@ -134,6 +163,8 @@ public class CompatTest {
         assertEquals("Play Store", CompatResolver.storeLabel("com.android.vending"));
         assertEquals("Galaxy Store", CompatResolver.storeLabel("com.sec.android.app.samsungapps"));
         assertEquals("Amazon Appstore", CompatResolver.storeLabel("com.amazon.venezia"));
+        assertEquals("Package installer (APK file)", CompatResolver.storeLabel("com.google.android.packageinstaller"));
+        assertEquals("Package installer (APK file)", CompatResolver.storeLabel("com.android.packageinstaller"));
         assertEquals("org.fdroid.fdroid", CompatResolver.storeLabel("org.fdroid.fdroid"));
         assertNull(CompatResolver.storeLabel(null));
     }

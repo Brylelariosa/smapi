@@ -68,6 +68,27 @@ public final class GameVersion {
         return version.platformRelease;
     }
 
+    /**
+     * Version text as the platform reports it. SMAPI's own ToString drops a platform release of 0 (so 1.6.15.0 prints as
+     * 1.6.15); that hides which build the device really has, so this keeps it.
+     */
+    public String display() {
+        int dots = 0;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '-' || c == '+') {
+                break;
+            }
+            if (c == '.') {
+                dots++;
+            }
+        }
+        if (dots >= 3 && version.platformRelease == 0 && version.prerelease == null && version.build == null) {
+            return version.core().toString() + ".0";
+        }
+        return version.toString();
+    }
+
     @Override
     public String toString() {
         return version.toString();

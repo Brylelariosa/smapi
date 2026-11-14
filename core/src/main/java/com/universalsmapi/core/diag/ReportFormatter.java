@@ -13,6 +13,9 @@ import com.universalsmapi.core.detect.ProbeResult;
 import com.universalsmapi.core.dotnet.AssemblyLayout;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -59,7 +62,7 @@ public final class ReportFormatter {
         sb.append(" ==\n");
         if (p != null) {
             sb.append("Version: ").append(p.versionName).append("  code ").append(p.versionCode).append('\n');
-            sb.append("Parsed game version: ").append(r.gameVersion == null ? "(not understood)" : r.gameVersion.toString())
+            sb.append("Parsed game version: ").append(r.gameVersion == null ? "(not understood)" : r.gameVersion.display())
                     .append(r.gameVersionSource == null ? "" : "  [" + r.gameVersionSource + "]").append('\n');
             sb.append("Installer: ").append(p.installerPackage).append("  initiating: ").append(p.initiatingPackage).append('\n');
             sb.append("Signers (SHA-256)").append(p.multipleSigners ? " [multiple]" : "").append(": ").append(p.signerSha256).append('\n');
@@ -69,7 +72,7 @@ public final class ReportFormatter {
             sb.append("splits: ").append(p.splitNames).append('\n');
             sb.append("nativeLibraryDir: ").append(p.nativeLibraryDir).append('\n');
         } else {
-            sb.append("Parsed game version: ").append(r.gameVersion == null ? "(not understood)" : r.gameVersion.toString()).append('\n');
+            sb.append("Parsed game version: ").append(r.gameVersion == null ? "(not understood)" : r.gameVersion.display()).append('\n');
         }
 
         sb.append("\nProbes:\n");
@@ -93,6 +96,15 @@ public final class ReportFormatter {
             if (!f.runtimeMarkers.isEmpty()) {
                 sb.append("    runtime: ").append(f.runtimeMarkers).append('\n');
             }
+            for (ApkFacts.AbiLibs libs : f.nativeLibs.values()) {
+                sb.append("    lib/").append(libs.abi).append(": ").append(libs.files.size()).append(" files, ")
+                        .append(bytes(libs.bytes)).append(libs.compressedCount > 0 ? ", " + libs.compressedCount + " compressed" : "")
+                        .append('\n');
+            }
+            ApkFacts.AbiLibs arm64 = f.nativeLibs.get("arm64-v8a");
+            if (arm64 != null) {
+                sb.append("    lib/arm64-v8a files: ").append(String.join(", ", arm64.files)).append('\n');
+            }
             sb.append("    assets: ").append(f.assetFiles).append(" files, ").append(bytes(f.assetBytes))
                     .append(", top-level ").append(f.assetTopLevel).append('\n');
             if (f.manifest != null) {
@@ -103,6 +115,13 @@ public final class ReportFormatter {
                         .append(" extractNativeLibs=").append(m.extractNativeLibs)
                         .append(" launcher=").append(m.launcherActivity).append('\n');
                 sb.append("    permissions: ").append(m.permissions).append('\n');
+                sb.append("    application: ").append(m.applicationClass).append("  componentFactory: ")
+                        .append(m.appComponentFactory).append('\n');
+                sb.append("    activities: ").append(m.activityNames).append('\n');
+                sb.append("    services: ").append(m.serviceNames).append("  receivers: ").append(m.receiverNames)
+                        .append("  providers: ").append(m.providerNames).append('\n');
+                sb.append("    uses-library: ").append(m.libraries).append("  uses-native-library: ")
+                        .append(m.nativeLibraries).append('\n');
             }
             for (String w : f.zipWarnings) {
                 sb.append("    zip warning: ").append(w).append('\n');
@@ -126,9 +145,11 @@ public final class ReportFormatter {
                 sb.append("  store ").append(s.entryName).append(" [").append(s.format).append(", ").append(bytes(s.entrySize))
                         .append(s.storedUncompressed ? "" : ", compressed in APK").append("] header ")
                         .append(s.headerRead ? ("magicOk=" + s.magicOk + " version=" + s.version + " words="
-                                + s.wordsText()) : "unread").append(' ').append(s.detail).append('\n');
+                                + s.wordsText()) : "unread").append(' ').append(s.detail).append("  decode: ")
+                        .append(s.decodeSummary).append('\n');
             }
             sb.append("  manifest: ").append(l.manifestPresent ? (l.manifestNames.size() + " names") : "absent").append('\n');
+            appendEntries(sb, l, r.architecture.installedAbi);
             for (String n : l.notes) {
                 sb.append("  note: ").append(n).append('\n');
             }
@@ -154,6 +175,50 @@ public final class ReportFormatter {
             sb.append("  [").append(f.severity).append("] ").append(f.code).append(": ").append(f.message).append('\n');
         }
         sb.append('\n');
+    }
+
+    private static void appendEntries(StringBuilder sb, AssemblyLayout l, String abi) {
+        List<AssemblyLayout.Entry> shown = l.entriesFor(abi);
+        if (!shown.isEmpty()) {
+            long stored = 0;
+            long expanded = 0;
+            int xalz = 0;
+            for (AssemblyLayout.Entry e : shown) {
+                stored += e.dataSize;
+                expanded += e.uncompressedSize;
+                if (e.isCompressed()) {
+                    xalz++;
+                }
+            }
+            sb.append("  Assemblies the runtime maps (shared store + the ").append(abi == null ? "arm64-v8a" : abi)
+                    .append(" store): ").append(shown.size()).append(" (").append(xalz)
+                    .append(" LZ4-compressed, ").append(shown.size() - xalz).append(" plain); stored ")
+                    .append(bytes(stored)).append(", expands to ").append(bytes(expanded)).append('\n');
+            List<AssemblyLayout.Entry> sorted = new ArrayList<>(shown);
+            Collections.sort(sorted, new Comparator<AssemblyLayout.Entry>() {
+                @Override
+                public int compare(AssemblyLayout.Entry a, AssemblyLayout.Entry b) {
+                    return Long.compare(b.dataSize, a.dataSize);
+                }
+            });
+            for (AssemblyLayout.Entry e : sorted) {
+                sb.append("    ").append(pad(e.name == null ? "(no manifest row)" : e.name, 38)).append(' ')
+                        .append(pad(bytes(e.dataSize), 9)).append(' ')
+                        .append(e.isCompressed() ? "xalz -> " + bytes(e.uncompressedSize) : e.payload)
+                        .append("   store ").append(e.storeId).append(" #").append(e.localIndex).append('\n');
+            }
+        }
+        for (String problem : l.decodeProblems) {
+            sb.append("  decode problem: ").append(problem).append('\n');
+        }
+    }
+
+    private static String pad(String s, int width) {
+        StringBuilder sb = new StringBuilder(s);
+        while (sb.length() < width) {
+            sb.append(' ');
+        }
+        return sb.toString();
     }
 
     static String bytes(long n) {

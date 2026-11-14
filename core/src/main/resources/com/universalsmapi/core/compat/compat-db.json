@@ -1464,8 +1464,8 @@
   ],
   "androidPorts": {
     "status": "documented-unverified",
-    "retrieved": "2026-11-11",
-    "summary": "Official SMAPI cannot run on Android as-is; community ports exist (stardewvalleywiki.com Modding:Installing_SMAPI_on_Android). No Android release is catalogued here until tested.",
+    "retrieved": "2026-11-12",
+    "summary": "Official SMAPI cannot run on Android as-is; community ports exist (stardewvalleywiki.com Modding:Installing_SMAPI_on_Android). Android rows below come from third-party documentation and stay documented-unverified until tested on a real installation.",
     "documentedRequirements": [
       {
         "launcher": "NRTnarathip/SMAPILoader",
@@ -1481,6 +1481,15 @@
         "verification": "documented-unverified"
       }
     ],
-    "releases": []
+    "releases": [
+      {
+        "name": "Community Android port, as used in a December 2025 tutorial",
+        "smapiVersion": "4.1.10.3",
+        "gameMin": "1.6.15.0",
+        "gameMax": "1.6.15.0",
+        "evidence": "https://www.bilibili.com/opus/1146898074988183554 (edited 16 Dec 2025): game 1.6.15.0 installed from an apks bundle, SMAPI Launcher app, SMAPI-4.1.10.3 zip; the in-game overlay shows SMAPI v4.1.10.3 and game 1.6.15",
+        "verification": "documented-unverified"
+      }
+    ]
   }
 }

@@ -37,7 +37,14 @@ internal fun assembliesText(r: InstallationReport): String {
     return when (l.kind) {
         AssemblyLayout.Kind.NONE -> "None found in the APKs that were read"
         AssemblyLayout.Kind.LOOSE_ASSEMBLIES -> "${l.looseAssemblyEntries.size} loose .dll files in ${r.assembliesFrom}"
-        AssemblyLayout.Kind.STORE_BLOB -> "Assembly store (${l.stores.size} blob files) in ${r.assembliesFrom}$named"
+        AssemblyLayout.Kind.STORE_BLOB -> {
+            val mapped = l.entriesFor(r.architecture.installedAbi)
+            if (mapped.isEmpty()) {
+                "Assembly store (${l.stores.size} blob files) in ${r.assembliesFrom}$named"
+            } else {
+                "Assembly store: ${mapped.size} assemblies, ${mapped.count { it.isCompressed }} LZ4-compressed"
+            }
+        }
         AssemblyLayout.Kind.STORE_IN_ELF -> "Assembly store inside a native library in ${r.assembliesFrom}$named"
         AssemblyLayout.Kind.MIXED -> "Mixed layout in ${r.assembliesFrom}$named"
         AssemblyLayout.Kind.UNKNOWN -> "Unrecognised layout"

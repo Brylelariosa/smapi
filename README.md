@@ -4,9 +4,16 @@ An Android app that finds an installed Stardew Valley, reads what the system and
 (version, architecture, how managed assemblies are packaged) and says what it knows and does not know. It does
 **not** install, patch or run SMAPI yet, and it requests **no permissions**.
 
-> Status: the core library (`:core`) is unit-tested on a plain JDK. The Android shell (`:app`) has **not** been
-> compiled or run on a device by its author. Its first CI build and first run on a real phone are the
-> verification step. Nothing here is claimed to work with SMAPI.
+> Status (0.2.0): the core library (`:core`, 80 unit tests) is tested on a plain JDK. The Android shell (`:app`)
+> compiled in CI and ran on one phone (Infinix X675, Android 11, arm64): see `docs/EVIDENCE.md`. Nothing here is
+> claimed to work with SMAPI.
+
+### New in 0.2.0
+
+- Four-part game versions are shown as reported (`1.6.15.0`, not `1.6.15`).
+- The assembly store (version 1) is decoded: every assembly with its size and whether it is LZ4-compressed.
+- Manifest component names and the native library list are included in the report.
+- One documented, untested Android row (SMAPI 4.1.10.3 with game 1.6.15.0, from a community tutorial).
 
 ## Build
 
@@ -45,8 +52,9 @@ python3 tools/generate_compat_db.py path/to/SMAPI-develop.zip \
 
 ## Limits worth knowing
 
-- Parsers (ZIP, Android binary XML, assembly-store headers) are tested against fixtures built from the published
-  formats and against JDK-written ZIPs. They have not seen the real Stardew Valley APK yet.
+- Parsers (ZIP, Android binary XML, assembly stores) are tested against fixtures built from the published formats
+  and JDK-written ZIPs. On a real phone the ZIP, manifest and store-header parsing worked; the new per-assembly
+  decoder has not yet seen the real game (the next report will show whether it validates).
 - The compatibility database lists desktop SMAPI releases from SMAPI's own notes. Android SMAPI ports are separate
   builds; none is catalogued, so the app reports "no Android build catalogued" rather than "compatible".
 - On Android 11+ another app's `Android/data` (where the game keeps saves) is not readable by design; saves cannot

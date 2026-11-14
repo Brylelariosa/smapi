@@ -78,4 +78,31 @@ public class ReportFormatterTest {
         String text = ReportFormatter.format("0.1.0-test", device(), new ArrayList<InstallationReport>(), new DiagnosticLog());
         assertTrue(text.contains("None detected."));
     }
+
+    @Test
+    public void reportListsDecodedAssembliesAndTheFourPartVersion() throws Exception {
+        DiagnosticLog log = new DiagnosticLog();
+        PackageFacts.Builder b = new PackageFacts.Builder();
+        b.packageName = "com.chucklefish.stardewvalley";
+        b.label = "Stardew Valley";
+        b.versionName = "1.6.15.0";
+        b.versionCode = 239;
+        b.installerPackage = "com.google.android.packageinstaller";
+        b.nativeLibraryDir = "/data/app/x/lib/arm64";
+        List<ApkInput> inputs = new ArrayList<>();
+        inputs.add(new ApkInput("base", SyntheticApk.source(SyntheticApk.deviceLike("1.6.15.0", false), "path:/x/base.apk")));
+        InstallationReport r = new DetectionPipeline(CompatDatabase.loadBundled()).inspect(b.build(), device(), inputs,
+                new ArrayList<ProbeResult>(), log);
+        String text = ReportFormatter.format("0.2.0-test", device(), Collections.singletonList(r), log);
+        assertTrue(text.contains("Parsed game version: 1.6.15.0"));
+        assertTrue(text.contains("Assemblies the runtime maps (shared store + the arm64-v8a store): 4 (2 LZ4-compressed, 2 plain)"));
+        assertTrue(text.contains("Stardew Valley"));
+        assertTrue(text.contains("xalz -> 8.8 KB"));
+        assertTrue(text.contains("store 1 #0"));
+        assertTrue(text.contains("lib/arm64-v8a: 4 files"));
+        assertTrue(text.contains("lib/arm64-v8a files: libmonodroid.so"));
+        assertTrue(text.contains("activities: [crc64f0.MainActivity]"));
+        assertTrue(text.contains("Android release documented but untested: SMAPI 4.1.10.3"));
+        assertFalse(text.toLowerCase().contains("is compatible"));
+    }
 }

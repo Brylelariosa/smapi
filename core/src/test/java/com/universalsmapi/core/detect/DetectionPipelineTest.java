@@ -226,4 +226,34 @@ public class DetectionPipelineTest {
         assertEquals(ProbeResult.Outcome.FAILED, r.probes.get(1).outcome);
         assertNotNull(finding(r, "BASE_APK_UNREADABLE"));
     }
+
+    @Test
+    public void shapeReportedByARealPhoneIsUnderstood() throws Exception {
+        PackageFacts.Builder b = stardew();
+        b.versionName = "1.6.15.0";
+        b.versionCode = 239;
+        b.installerPackage = "com.google.android.packageinstaller";
+        b.initiatingPackage = "com.google.android.packageinstaller";
+        InstallationReport r = run(b.build(), device64(), base(SyntheticApk.deviceLike("1.6.15.0", false)), new ArrayList<ProbeResult>());
+
+        assertEquals("1.6.15.0", r.gameVersion.display());
+        assertEquals(ArchitectureAssessment.Verdict.ARM64, r.architecture.verdict);
+        assertTrue(r.architecture.abisPackaged.containsAll(Arrays.asList("arm64-v8a", "armeabi-v7a", "x86", "x86_64")));
+        assertEquals(AssemblyLayout.Kind.STORE_BLOB, r.assemblies.kind);
+        assertEquals(CompatResolver.Status.ANDROID_RELEASE_DOCUMENTED_UNVERIFIED, r.compat.status);
+        assertEquals("4.1.10.3", r.compat.androidRelease.smapiVersion.toString());
+        assertEquals(AssemblyCheck.State.PRESENT, check(r, "Stardew Valley"));
+        assertEquals(AssemblyCheck.State.PRESENT, check(r, "MonoGame.Framework"));
+        assertEquals(AssemblyCheck.State.ABSENT, check(r, "GalaxyCSharp"));
+        assertEquals(AssemblyCheck.State.ABSENT, check(r, "SkiaSharp"));
+        Finding compression = finding(r, "ASSEMBLY_COMPRESSION");
+        assertNotNull(compression);
+        assertTrue(compression.message.contains("2 of 4"));
+        assertNull(finding(r, "STORE_DECODE_PROBLEM"));
+        assertNotNull(finding(r, "REQUIREMENT_NOT_MET"));
+        assertNotNull(finding(r, "STORE_FORMAT"));
+        for (Finding f : r.findings) {
+            assertFalse("unexpected error finding " + f.code, f.severity == Finding.Severity.ERROR);
+        }
+    }
 }

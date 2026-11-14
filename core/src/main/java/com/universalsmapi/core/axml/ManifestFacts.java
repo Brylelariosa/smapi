@@ -26,6 +26,11 @@ public final class ManifestFacts {
     public int services;
     public int receivers;
     public int providers;
+    /** Component class names (first 60 of each kind), useful for judging how the runtime is bootstrapped. */
+    public final List<String> activityNames = new ArrayList<>();
+    public final List<String> serviceNames = new ArrayList<>();
+    public final List<String> receiverNames = new ArrayList<>();
+    public final List<String> providerNames = new ArrayList<>();
     public final List<String> permissions = new ArrayList<>();
     public final List<String> features = new ArrayList<>();
     public final List<String> nativeLibraries = new ArrayList<>();
@@ -77,18 +82,22 @@ public final class ManifestFacts {
                     case "activity":
                     case "activity-alias":
                         f.activities++;
+                        addCapped(f.activityNames, c.attr("name"));
                         if (f.launcherActivity == null && isLauncher(c)) {
                             f.launcherActivity = c.attr("name");
                         }
                         break;
                     case "service":
                         f.services++;
+                        addCapped(f.serviceNames, c.attr("name"));
                         break;
                     case "receiver":
                         f.receivers++;
+                        addCapped(f.receiverNames, c.attr("name"));
                         break;
                     case "provider":
                         f.providers++;
+                        addCapped(f.providerNames, c.attr("name"));
                         break;
                     case "uses-native-library":
                         addIfPresent(f.nativeLibraries, c.attr("name"));
@@ -121,6 +130,12 @@ public final class ManifestFacts {
             }
         }
         return false;
+    }
+
+    private static void addCapped(List<String> list, String v) {
+        if (v != null && !v.isEmpty() && list.size() < 60) {
+            list.add(v);
+        }
     }
 
     private static void addIfPresent(List<String> list, String v) {

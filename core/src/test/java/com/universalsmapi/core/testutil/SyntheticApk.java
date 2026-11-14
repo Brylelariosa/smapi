@@ -94,6 +94,49 @@ public final class SyntheticApk {
         return zip.build();
     }
 
+    private static String manifestRow(long blobId, long idx, String name) {
+        return String.format("0x%08x  0x%016x  %03d      %04d      %s\n", blobId * 31 + idx, blobId * 977 + idx, blobId, idx, name);
+    }
+
+    /**
+     * Mirrors the structure reported by a real phone for Stardew Valley 1.6.15.0: one universal APK with four ABIs, a
+     * shared store (id 0) plus one store per ABI (id 1) in version-1 layout, and an assemblies.manifest naming them.
+     */
+    public static byte[] deviceLike(String versionName, boolean breakManifestCount) {
+        MiniZip zip = new MiniZip();
+        zip.add("AndroidManifest.xml", manifest("com.chucklefish.stardewvalley", versionName, 239, null, true));
+        zip.add("classes.dex", "dex\n035\0".getBytes(StandardCharsets.US_ASCII));
+        zip.add("resources.arsc", new byte[] {1});
+        String[] abis = {"arm64-v8a", "armeabi-v7a", "x86", "x86_64"};
+        for (String abi : abis) {
+            for (String lib : new String[] {"libmonodroid.so", "libmonosgen-2.0.so", "libSystem.Native.so", "libxamarin-app.so"}) {
+                zip.add("lib/" + abi + "/" + lib, new byte[] {1, 2});
+            }
+        }
+        zip.add("assets/Content/Data/Objects.xnb", new byte[] {9});
+        zip.add("assets/Content/Maps/Farm.tbin", new byte[] {9});
+        zip.add("assemblies/assemblies.blob", StoreBuilder.v1(0, 4, true,
+                StoreBuilder.xalz(9_000, 300), StoreBuilder.pe(120), StoreBuilder.pe(60)));
+        int size = 40;
+        for (String abi : abis) {
+            size += 10;
+            zip.add("assemblies/assemblies." + abi.replace('-', '_') + ".blob", StoreBuilder.v1(1, 0, false, StoreBuilder.xalz(2_000 + size, size)));
+        }
+        StringBuilder manifest = new StringBuilder("Hash 32     Hash 64             Blob ID  Blob idx  Name\n");
+        manifest.append(manifestRow(0, 0, "Stardew Valley"));
+        manifest.append(manifestRow(0, 1, "MonoGame.Framework"));
+        manifest.append(manifestRow(0, 2, "xTile"));
+        manifest.append(manifestRow(1, 0, "System.Private.CoreLib"));
+        if (breakManifestCount) {
+            manifest.append(manifestRow(0, 3, "Ghost.Assembly"));
+        }
+        zip.add("assemblies/assemblies.manifest", manifest.toString());
+        zip.add("META-INF/CERT.SF", "Signature-Version: 1.0\n");
+        zip.add("META-INF/CERT.RSA", new byte[] {5});
+        zip.signingBlock(SigningBlocks.build(0x7109871aL, 0xf05368c0L));
+        return zip.build();
+    }
+
     /** ApkSource over bytes. */
     public static ApkSource source(final byte[] data, final String origin) {
         return new ApkSource() {
