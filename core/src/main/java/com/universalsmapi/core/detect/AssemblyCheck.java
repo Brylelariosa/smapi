@@ -11,9 +11,16 @@ public final class AssemblyCheck {
 
     public final String name;
     public final State state;
+    /** The name actually seen when it differs from {@link #name} (the game assembly is 'StardewValley' on Android). */
+    public final String foundAs;
 
     public AssemblyCheck(String name, State state) {
+        this(name, state, null);
+    }
+
+    public AssemblyCheck(String name, State state, String foundAs) {
         this.name = name;
         this.state = state;
+        this.foundAs = foundAs;
     }
 }

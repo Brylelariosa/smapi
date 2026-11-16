@@ -58,7 +58,7 @@ public final class DetectionPipeline {
         boolean device64 = device != null && device.has64Bit();
         rep.compat = resolver.resolve(rep.gameVersion, device64, pkg == null ? null : pkg.installerPackage);
         buildFindings(rep, pkg);
-        log.info(TAG, "done: version=" + rep.gameVersion + " arch=" + rep.architecture.verdict + " compat="
+        log.info(TAG, "done: version=" + (rep.gameVersion == null ? "unknown" : rep.gameVersion.display()) + " arch=" + rep.architecture.verdict + " compat="
                 + rep.compat.status + " findings=" + rep.findings.size());
         return rep;
     }
@@ -140,10 +140,10 @@ public final class DetectionPipeline {
         rep.assemblies = layout;
         rep.assembliesFrom = chosen.role;
         for (String name : db.upstreamReferencedAssemblies) {
-            boolean present = isGameAssemblyName(name) ? anyGameAssembly(layout) : layout.hasAssembly(name);
-            AssemblyCheck.State state = present ? AssemblyCheck.State.PRESENT
+            String foundAs = isGameAssemblyName(name) ? gameAssemblyAlias(layout) : (layout.hasAssembly(name) ? name : null);
+            AssemblyCheck.State state = foundAs != null ? AssemblyCheck.State.PRESENT
                     : (layout.canListNames() ? AssemblyCheck.State.ABSENT : AssemblyCheck.State.UNKNOWN);
-            rep.assemblyChecks.add(new AssemblyCheck(name, state));
+            rep.assemblyChecks.add(new AssemblyCheck(name, state, foundAs != null && !foundAs.equals(name) ? foundAs : null));
         }
     }
 
@@ -156,13 +156,14 @@ public final class DetectionPipeline {
         return false;
     }
 
-    private boolean anyGameAssembly(AssemblyLayout layout) {
+    /** The alias under which the game assembly was found ('StardewValley' on Android), or null. */
+    private String gameAssemblyAlias(AssemblyLayout layout) {
         for (String alias : db.upstreamGameAssemblyAliases) {
             if (alias.toLowerCase(Locale.ROOT).startsWith("stardew") && layout.hasAssembly(alias)) {
-                return true;
+                return alias;
             }
         }
-        return false;
+        return null;
     }
 
     private void buildFindings(InstallationReport rep, PackageFacts pkg) {

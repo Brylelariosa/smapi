@@ -122,6 +122,42 @@ class AndroidPackageGateway(private val context: Context) {
         return out
     }
 
+    /**
+     * Opt-in probes: can this process read, and load, native libraries from the game's own library folder? System.load
+     * runs a library's initialisers, so this is only called when the user asks for host probes. Only libraries without
+     * JNI entry points (the Mono runtime, a data-only library and an AOT image) are tried.
+     */
+    fun nativeLoadProbes(pkg: PackageFacts): List<ProbeResult> {
+        val dir = pkg.nativeLibraryDir
+            ?: return listOf(ProbeResult.skipped("native-load", "no nativeLibraryDir was reported for the package"))
+        val elf = byteArrayOf(0x7F, 0x45, 0x4C, 0x46)
+        val out = mutableListOf<ProbeResult>()
+        for (name in HOST_PROBE_LIBS) {
+            val f = File(dir, name)
+            val magic = try {
+                f.inputStream().use { s -> ByteArray(4).also { b -> s.read(b) } }
+            } catch (e: Exception) {
+                null
+            }
+            out += ProbeResult.info(
+                "native-read:$name",
+                "exists=${f.exists()} length=${f.length()} canRead=${f.canRead()} elfMagic=${magic != null && magic.contentEquals(elf)}",
+            )
+            if (!f.exists()) continue
+            try {
+                System.load(f.absolutePath)
+                out += ProbeResult.ok("native-load:$name", "System.load succeeded for ${f.absolutePath}")
+            } catch (e: UnsatisfiedLinkError) {
+                out += ProbeResult.failed("native-load:$name", "UnsatisfiedLinkError: ${e.message}")
+            } catch (e: SecurityException) {
+                out += ProbeResult.failed("native-load:$name", "SecurityException: ${e.message}")
+            } catch (e: Throwable) {
+                out += ProbeResult.failed("native-load:$name", "${e.javaClass.name}: ${e.message}")
+            }
+        }
+        return out
+    }
+
     private fun loadInfo(pm: PackageManager, name: String): PackageInfo =
         if (Build.VERSION.SDK_INT >= 33) {
             pm.getPackageInfo(name, PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong()))
@@ -135,5 +171,6 @@ class AndroidPackageGateway(private val context: Context) {
 
     private companion object {
         const val TAG = "android-gateway"
+        val HOST_PROBE_LIBS = listOf("libmonosgen-2.0.so", "libxamarin-app.so", "libaot-StardewValley.dll.so")
     }
 }

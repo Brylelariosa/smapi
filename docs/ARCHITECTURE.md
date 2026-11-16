@@ -18,11 +18,11 @@ parser testable on a JDK and makes the phase-2 provisioning code swappable.
 | `zip` | central-directory reader (ZIP64, stored/deflate); never extracts to disk |
 | `apk` | `ApkInspector` (entries, ABIs, signing block, runtime markers), `ApkSource` |
 | `axml` | Android binary XML parser and `ManifestFacts` |
-| `dotnet` | `AssemblyLayoutProbe`: loose DLLs / `assemblies.blob` stores / ELF-wrapped stores. `AssemblyStoreReader` decodes store v1 descriptors (validated against file size and 'MZ'/'XALZ' signatures) and joins them with `assemblies.manifest` names |
+| `dotnet` | `AssemblyLayoutProbe`: loose DLLs / `assemblies.blob` stores / ELF-wrapped stores. `AssemblyStoreReader` decodes store v1 descriptors (validated against file size and 'MZ'/'XALZ' signatures) and joins them with `assemblies.manifest` names. `Lz4`, `PeSummary` and `AssemblyVerifier` decompress and verify assemblies in memory |
 | `version` | ports of SMAPI's `SemanticVersion` and `GameVersion` (including the fourth "platform release" number) |
 | `json` | `LenientJson`: comments, trailing commas, curly-quote retry, as SMAPI tolerates in manifests |
 | `compat` | `CompatDatabase` (generated JSON) and `CompatResolver` (never says "compatible") |
-| `detect` | `DetectionPipeline` and the report model (`InstallationReport`, `Finding`, `ProbeResult`...) |
+| `detect` | `DetectionPipeline` and the report model (`InstallationReport`, `Finding`, `ProbeResult`, `HostProbeResult`...) |
 | `diag` | bounded `DiagnosticLog` and the plain-text `ReportFormatter` |
 
 ## Principles encoded in the code

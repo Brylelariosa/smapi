@@ -44,4 +44,14 @@ public final class StoreBuilder {
         }
         return out.toByteArray();
     }
+
+    /** XALZ container around a real LZ4 block of the given image. */
+    public static byte[] xalzOf(byte[] image) {
+        return xalzWithDeclared(image, image.length);
+    }
+
+    /** Like {@link #xalzOf} but lies about the uncompressed length (for failure tests). */
+    public static byte[] xalzWithDeclared(byte[] image, long declaredLength) {
+        return new Bytes().ascii("XALZ").u32(7).u32(declaredLength).bytes(Lz4Encoder.encode(image)).toByteArray();
+    }
 }

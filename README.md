@@ -4,9 +4,15 @@ An Android app that finds an installed Stardew Valley, reads what the system and
 (version, architecture, how managed assemblies are packaged) and says what it knows and does not know. It does
 **not** install, patch or run SMAPI yet, and it requests **no permissions**.
 
-> Status (0.2.0): the core library (`:core`, 80 unit tests) is tested on a plain JDK. The Android shell (`:app`)
+> Status (0.3.0): the core library (`:core`, 95 unit tests) is tested on a plain JDK. The Android shell (`:app`)
 > compiled in CI and ran on one phone (Infinix X675, Android 11, arm64): see `docs/EVIDENCE.md`. Nothing here is
 > claimed to work with SMAPI.
+
+### New in 0.3.0
+
+- **Host probes** (button, opt-in): decompress every assembly the runtime maps (LZ4) in memory and verify it is a
+  managed PE image, and try to load three of the game's own native libraries. Read-only on the game; nothing is written.
+- The game assembly is recognised as `StardewValley` (the name Android uses) and shown as such.
 
 ### New in 0.2.0
 

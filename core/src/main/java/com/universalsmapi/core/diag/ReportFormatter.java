@@ -155,7 +155,8 @@ public final class ReportFormatter {
             }
             sb.append("  Upstream SMAPI compiles against these assemblies:\n");
             for (AssemblyCheck c : r.assemblyChecks) {
-                sb.append("    ").append(c.state).append("  ").append(c.name).append('\n');
+                sb.append("    ").append(c.state).append("  ").append(c.name)
+                        .append(c.foundAs == null ? "" : " (found as '" + c.foundAs + "')").append('\n');
             }
         }
 

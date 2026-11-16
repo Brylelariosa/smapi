@@ -2,16 +2,20 @@ package com.universalsmapi.launcher.platform
 
 import android.content.Context
 import android.net.Uri
+import com.universalsmapi.core.apk.FileApkSource
 import com.universalsmapi.core.compat.CompatDatabase
 import com.universalsmapi.core.detect.DetectionPipeline
 import com.universalsmapi.core.detect.DeviceFacts
+import com.universalsmapi.core.detect.HostProbeResult
 import com.universalsmapi.core.detect.InstallationReport
 import com.universalsmapi.core.detect.PackageFacts
 import com.universalsmapi.core.detect.ProbeResult
 import com.universalsmapi.core.diag.DiagnosticLog
 import com.universalsmapi.core.diag.ReportFormatter
+import com.universalsmapi.core.dotnet.AssemblyVerifier
 import com.universalsmapi.launcher.BuildConfig
 import com.universalsmapi.launcher.KnownPackages
+import java.io.File
 
 /** Result of scanning the device. */
 data class ScanResult(
@@ -55,6 +59,30 @@ class DetectionRepository(private val context: Context) {
         probes += ProbeResult.info("saf-pick", "user selected $uri")
         val inputs = listOf(DetectionPipeline.ApkInput("picked", SafApkSource(context.contentResolver, uri)))
         return pipeline.inspect(null, device, inputs, probes, log)
+    }
+
+    /** Opt-in, read-only checks of what a host process could do with the installed game. */
+    fun runHostProbes(report: InstallationReport): HostProbeResult {
+        val pkg = report.pkg
+            ?: return HostProbeResult(null, "no installed package to probe (picked files are not probed)", emptyList())
+        log.info(TAG, "host probes started for ${pkg.packageName}")
+        var extraction: AssemblyVerifier.Result? = null
+        var error: String? = null
+        val layout = report.assemblies
+        val source = pkg.sourceDir
+        if (layout == null || source == null) {
+            error = "assembly layout or base APK path is not available"
+        } else {
+            try {
+                extraction = AssemblyVerifier.verify(FileApkSource(File(source)), layout, report.architecture.installedAbi, log)
+            } catch (e: Exception) {
+                error = "${e.javaClass.simpleName}: ${e.message}"
+                log.error(TAG, "assembly verification failed", e)
+            }
+        }
+        val natives = gateway.nativeLoadProbes(pkg)
+        for (p in natives) log.info(TAG, "${p.id}: ${p.outcome} ${p.detail}")
+        return HostProbeResult(extraction, error, natives)
     }
 
     fun reportText(device: DeviceFacts?, reports: List<InstallationReport>): String =

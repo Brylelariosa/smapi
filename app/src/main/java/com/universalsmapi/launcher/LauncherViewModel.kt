@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.universalsmapi.core.detect.DeviceFacts
+import com.universalsmapi.core.detect.HostProbeResult
 import com.universalsmapi.core.detect.InstallationReport
 import com.universalsmapi.core.detect.PackageFacts
 import com.universalsmapi.launcher.platform.DetectionRepository
@@ -24,6 +25,8 @@ data class UiState(
     val existingLaunchers: List<PackageFacts> = emptyList(),
     val picked: InstallationReport? = null,
     val pickedBusy: Boolean = false,
+    val hostProbe: HostProbeResult? = null,
+    val hostProbeBusy: Boolean = false,
     val error: String? = null,
     val notice: String? = null,
 )
@@ -70,11 +73,29 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun runHostProbes() {
+        val report = _state.value.reports.firstOrNull { it.pkg != null }
+        if (report == null) {
+            _state.update { it.copy(error = "No installed Stardew Valley to probe.") }
+            return
+        }
+        _state.update { it.copy(hostProbeBusy = true, error = null, notice = null) }
+        viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) { repo.runHostProbes(report) }
+                _state.update { it.copy(hostProbeBusy = false, hostProbe = result) }
+            } catch (e: Exception) {
+                _state.update { it.copy(hostProbeBusy = false, error = "Host probes failed: ${e.javaClass.simpleName}: ${e.message}") }
+            }
+        }
+    }
+
     fun detailText(report: InstallationReport): String = repo.detailText(_state.value.device, report)
 
     fun reportText(): String {
         val s = _state.value
-        return repo.reportText(s.device, s.reports + listOfNotNull(s.picked))
+        val base = repo.reportText(s.device, s.reports + listOfNotNull(s.picked))
+        return s.hostProbe?.let { base + "\n" + it.toText() } ?: base
     }
 
     fun saveReport(uri: Uri) {

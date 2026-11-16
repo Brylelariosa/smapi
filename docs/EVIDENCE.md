@@ -25,3 +25,22 @@ Facts observed by the detection prototype on real devices. Each entry is what th
 
 Open questions the 0.2.0 report answers: which assemblies are LZ4-compressed and how large each is; the full list of
 manifest component names; the names of the 75 arm64 native libraries.
+
+## Device 1, second report (app 0.2.0-detect, 2026-11-14)
+
+| Area | Observed |
+|---|---|
+| Scan cost | About 0.3 s for the whole 377 MB APK, including decoding five assembly stores; no warnings or errors in the log |
+| Assembly store | Version-1 layout confirmed: descriptors at offset 20, 24 bytes each, all 65 validated; every payload starts with `XALZ` (LZ4) |
+| Assemblies | 65, all LZ4-compressed; 6.5 MB stored, 16.3 MB expanded. Shared store: 58; per-ABI store: 7 (`System.Private.CoreLib`, `System.Collections*`, `System.Linq`, `System.Net.Sockets`, `System.Runtime.Numerics`, `System.Text.RegularExpressions`) |
+| Game assembly | Named `StardewValley` (no space): 3.0 MB stored, 8.9 MB expanded. Also `StardewValley.GameData`, `MonoGame.Framework`, `xTile`, `Lidgren.Network`, `BmFont`, `Mono.Android`, `Java.Interop`, `Xamarin.AndroidX.DocumentFile` |
+| BCL | A trimmed set (65 assemblies in total); no `System.Reflection.Emit*`, `System.Text.Json` or `System.Collections.Immutable` assemblies are present |
+| AOT | 65 `libaot-<assembly>.dll.so` images in `lib/arm64`, one for every assembly, so the managed code is precompiled |
+| Other native libraries | `libmonodroid.so`, `libmonosgen-2.0.so`, `libxamarin-app.so`, `libmono-component-marshal-ilgen.so`, `libSystem.Native.so`, `libSystem.IO.Compression.Native.so`, `libSystem.Security.Cryptography.Native.Android.so`, `libopenal32.so`, `liblwjgl_lz4.so`, `libstb_png_writer.so` |
+| Native libraries in the APK | All stored compressed (`extractNativeLibs=true`); the installer extracted them to `lib/arm64` (75 files, listable by another app) |
+| Runtime bootstrap | `application` is plain `android.app.Application`; the only provider is `mono.MonoRuntimeProvider`; one activity |
+| Picked APK | Identical results through the file picker (same bytes, same stores) |
+
+Open questions the 0.3.0 host probes answer: whether all 65 assemblies decompress to valid managed images in memory,
+and whether another app can `System.load` the game's `libmonosgen-2.0.so`, `libxamarin-app.so` and an AOT image.
+

@@ -12,8 +12,8 @@ android {
         applicationId = "com.universalsmapi.launcher"
         minSdk = 30 // Android 11
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0-detect"
+        versionCode = 3
+        versionName = "0.3.0-detect"
     }
 
     buildTypes {

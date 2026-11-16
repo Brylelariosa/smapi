@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.universalsmapi.core.detect.Finding
+import com.universalsmapi.core.detect.HostProbeResult
 import com.universalsmapi.core.detect.InstallationReport
 import com.universalsmapi.core.detect.PackageFacts
 import com.universalsmapi.launcher.LauncherViewModel
@@ -82,7 +83,9 @@ fun LauncherApp(vm: LauncherViewModel) {
                     onPick = { pickApk.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream", "*/*")) },
                     onShare = { shareText(context, vm.reportText()) },
                     onSave = { saveReport.launch("smapi-launcher-detection-report.txt") },
-                    busy = state.scanning || state.pickedBusy,
+                    onHostProbes = { vm.runHostProbes() },
+                    hasInstall = state.reports.any { it.pkg != null },
+                    busy = state.scanning || state.pickedBusy || state.hostProbeBusy,
                 )
             }
             state.error?.let { msg -> item { Banner(msg, Tone.Bad) } }
@@ -94,6 +97,9 @@ fun LauncherApp(vm: LauncherViewModel) {
                 item { NotFoundCard(state.missing) }
             }
             items(state.reports) { report -> InstallationCard(report, vm) }
+
+            if (state.hostProbeBusy) item { Busy("Running host probes…") }
+            state.hostProbe?.let { probe -> item { HostProbeCard(probe) } }
 
             if (state.pickedBusy) item { Busy("Reading the picked file…") }
             state.picked?.let { report ->
@@ -124,7 +130,15 @@ private fun Header() {
 }
 
 @Composable
-private fun Actions(onRescan: () -> Unit, onPick: () -> Unit, onShare: () -> Unit, onSave: () -> Unit, busy: Boolean) {
+private fun Actions(
+    onRescan: () -> Unit,
+    onPick: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+    onHostProbes: () -> Unit,
+    hasInstall: Boolean,
+    busy: Boolean,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onRescan, enabled = !busy, modifier = Modifier.weight(1f)) { Text("Rescan") }
@@ -133,6 +147,9 @@ private fun Actions(onRescan: () -> Unit, onPick: () -> Unit, onShare: () -> Uni
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("Share report") }
             OutlinedButton(onClick = onSave, modifier = Modifier.weight(1f)) { Text("Save report…") }
+        }
+        OutlinedButton(onClick = onHostProbes, enabled = !busy && hasInstall, modifier = Modifier.fillMaxWidth()) {
+            Text("Host probes (advanced)")
         }
     }
 }
@@ -168,6 +185,21 @@ private fun NotFoundCard(missing: List<String>) {
 }
 
 @Composable
+private fun HostProbeCard(probe: HostProbeResult) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    SimpleCard {
+        Text("Host probes", style = MaterialTheme.typography.titleMedium)
+        Text(probe.headline(), style = MaterialTheme.typography.bodyMedium)
+        TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide details" else "Show details") }
+        if (expanded) {
+            SelectionContainer {
+                Text(probe.toText(), fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+        }
+    }
+}
+
+@Composable
 private fun OtherLaunchers(launchers: List<PackageFacts>) {
     SimpleCard {
         Text("Another SMAPI launcher is installed", style = MaterialTheme.typography.titleMedium)
@@ -183,7 +215,8 @@ private fun OtherLaunchers(launchers: List<PackageFacts>) {
 private fun Footer() {
     Text(
         "No permissions are requested. APK access is tried through the path Android reports for the installed game; if that " +
-            "is refused, the exact error is shown and you can pick the APK yourself.",
+            "is refused, the exact error is shown and you can pick the APK yourself. Host probes (only when you tap them) " +
+            "read the game's assemblies in memory and try to load three of its native libraries; nothing is written or changed.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
