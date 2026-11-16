@@ -30,6 +30,7 @@ data class ScanResult(
 class DetectionRepository(private val context: Context) {
     val log = DiagnosticLog()
     private val gateway = AndroidPackageGateway(context)
+    private val pluginProbes = PluginProbes(context)
     private val pipeline by lazy { DetectionPipeline(CompatDatabase.loadBundled()) }
 
     fun scan(): ScanResult {
@@ -82,11 +83,16 @@ class DetectionRepository(private val context: Context) {
         }
         val natives = gateway.nativeLoadProbes(pkg)
         for (p in natives) log.info(TAG, "${p.id}: ${p.outcome} ${p.detail}")
-        return HostProbeResult(extraction, error, natives)
+        val plugin = pluginProbes.run(pkg)
+        for (p in plugin.probes) log.info(TAG, "${p.id}: ${p.outcome} ${p.detail}")
+        return HostProbeResult(extraction, error, natives, plugin.probes, plugin.bootstrapApi)
     }
 
-    fun reportText(device: DeviceFacts?, reports: List<InstallationReport>): String =
-        ReportFormatter.format(BuildConfig.VERSION_NAME, device, reports, log)
+    fun reportText(device: DeviceFacts?, reports: List<InstallationReport>): String {
+        val base = ReportFormatter.format(BuildConfig.VERSION_NAME, device, reports, log)
+        val crash = CrashLog.read(context) ?: return base
+        return base + "\n== Previous crash ==\n" + crash + "\n"
+    }
 
     /** Installation-only text (no global event log), for the per-card details view. */
     fun detailText(device: DeviceFacts?, report: InstallationReport): String =

@@ -15,11 +15,22 @@ public final class HostProbeResult {
     public final AssemblyVerifier.Result extraction;
     public final String extractionError;
     public final List<ProbeResult> nativeProbes;
+    /** Probes of public Android APIs a plugin-style host would use (class loading, assets). */
+    public final List<ProbeResult> pluginProbes;
+    /** Class and method signatures of the game's runtime bootstrap classes, as seen through reflection. */
+    public final List<String> bootstrapApi;
 
     public HostProbeResult(AssemblyVerifier.Result extraction, String extractionError, List<ProbeResult> nativeProbes) {
+        this(extraction, extractionError, nativeProbes, new ArrayList<ProbeResult>(), new ArrayList<String>());
+    }
+
+    public HostProbeResult(AssemblyVerifier.Result extraction, String extractionError, List<ProbeResult> nativeProbes,
+                           List<ProbeResult> pluginProbes, List<String> bootstrapApi) {
         this.extraction = extraction;
         this.extractionError = extractionError;
         this.nativeProbes = new ArrayList<>(nativeProbes);
+        this.pluginProbes = new ArrayList<>(pluginProbes);
+        this.bootstrapApi = new ArrayList<>(bootstrapApi);
     }
 
     /** One-paragraph summary for the UI. */
@@ -42,6 +53,19 @@ public final class HostProbeResult {
             }
         }
         sb.append(" Native libraries loaded from the game's folder: ").append(loaded).append(" of ").append(attempted).append('.');
+        int passed = 0;
+        int tried = 0;
+        for (ProbeResult p : pluginProbes) {
+            if (p.outcome == ProbeResult.Outcome.OK) {
+                passed++;
+                tried++;
+            } else if (p.outcome == ProbeResult.Outcome.FAILED) {
+                tried++;
+            }
+        }
+        if (tried > 0) {
+            sb.append(" Plugin-path probes passed: ").append(passed).append(" of ").append(tried).append('.');
+        }
         return sb.toString();
     }
 
@@ -66,6 +90,18 @@ public final class HostProbeResult {
         sb.append("Native library probes:\n");
         for (ProbeResult p : nativeProbes) {
             sb.append("  [").append(p.outcome).append("] ").append(p.id).append(" - ").append(p.detail).append('\n');
+        }
+        if (!pluginProbes.isEmpty()) {
+            sb.append("Plugin-path probes (public Android APIs only):\n");
+            for (ProbeResult p : pluginProbes) {
+                sb.append("  [").append(p.outcome).append("] ").append(p.id).append(" - ").append(p.detail).append('\n');
+            }
+        }
+        if (!bootstrapApi.isEmpty()) {
+            sb.append("Game bootstrap classes as seen through reflection:\n");
+            for (String line : bootstrapApi) {
+                sb.append("  ").append(line).append('\n');
+            }
         }
         return sb.toString();
     }

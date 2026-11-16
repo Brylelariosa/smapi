@@ -41,6 +41,18 @@ manifest component names; the names of the 75 arm64 native libraries.
 | Runtime bootstrap | `application` is plain `android.app.Application`; the only provider is `mono.MonoRuntimeProvider`; one activity |
 | Picked APK | Identical results through the file picker (same bytes, same stores) |
 
-Open questions the 0.3.0 host probes answer: whether all 65 assemblies decompress to valid managed images in memory,
-and whether another app can `System.load` the game's `libmonosgen-2.0.so`, `libxamarin-app.so` and an AOT image.
+## Device 1, third report (app 0.3.0-detect, 2026-11-16): host probes
+
+| Probe | Observed |
+|---|---|
+| Assembly extraction | 65 of 65 assemblies decompressed (LZ4) in memory and verified as managed PE images in 240 ms; 6.5 MB stored, 16.3 MB expanded; 0 failures. Every image is `i386/AnyCPU` (platform-neutral IL). `StardewValley` is 8.9 MB expanded |
+| Reading the game's native libraries | `libmonosgen-2.0.so` (3,195,488 bytes), `libxamarin-app.so` (56,416 bytes) and `libaot-StardewValley.dll.so` (21,441,704 bytes) are readable and have ELF magic |
+| Loading them from another app | `System.load` succeeded for all three on Android 11, with no permission requested |
+
+What this does not show: that the Mono runtime can be started in another process (only loading was tested, not
+initialisation), that `libmonodroid.so` (which has JNI entry points) can be loaded, or that any of it works on other devices.
+
+Open questions the 0.4.0 plugin-path probes answer: whether `createPackageContext`, `DexClassLoader` and
+`getResourcesForApplication` (all public APIs) can reach the game's Java classes and assets from this app, and the exact
+signatures of the game's `mono.MonoPackageManager`, `mono.android.Runtime` and `mono.MonoRuntimeProvider` classes.
 

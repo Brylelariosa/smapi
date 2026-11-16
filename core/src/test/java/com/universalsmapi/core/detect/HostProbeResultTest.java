@@ -50,4 +50,23 @@ public class HostProbeResultTest {
         assertTrue(none.headline().contains("check did not run (IOException: nope)"));
         assertTrue(none.toText().contains("did not run: IOException: nope"));
     }
+
+    @Test
+    public void pluginProbesAndBootstrapApiAreSummarisedAndPrinted() {
+        List<ProbeResult> plugin = new ArrayList<>();
+        plugin.add(ProbeResult.ok("plugin-context", "createPackageContext succeeded"));
+        plugin.add(ProbeResult.failed("plugin-class:dex-class-loader:mono.android.Runtime", "ClassNotFoundException: nope"));
+        plugin.add(ProbeResult.info("plugin-assets-content", "42 entries"));
+        List<String> api = new ArrayList<>();
+        api.add("class mono.MonoPackageManager  extends java.lang.Object");
+        api.add("  public static void LoadApplication(Context, ApplicationInfo, String[])");
+
+        HostProbeResult h = new HostProbeResult(null, "no layout", new ArrayList<ProbeResult>(), plugin, api);
+        assertTrue(h.headline().endsWith("Plugin-path probes passed: 1 of 2."));
+        String text = h.toText();
+        assertTrue(text.contains("Plugin-path probes (public Android APIs only):"));
+        assertTrue(text.contains("[OK] plugin-context - createPackageContext succeeded"));
+        assertTrue(text.contains("Game bootstrap classes as seen through reflection:"));
+        assertTrue(text.contains("  public static void LoadApplication(Context, ApplicationInfo, String[])"));
+    }
 }

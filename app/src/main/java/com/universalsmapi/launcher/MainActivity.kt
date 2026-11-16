@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import com.universalsmapi.launcher.platform.CrashLog
 import com.universalsmapi.launcher.ui.LauncherApp
 import com.universalsmapi.launcher.ui.LauncherTheme
 
@@ -12,6 +13,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(this)
         setContent {
             LauncherTheme {
                 LauncherApp(viewModel)

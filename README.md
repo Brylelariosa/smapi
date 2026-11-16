@@ -4,9 +4,17 @@ An Android app that finds an installed Stardew Valley, reads what the system and
 (version, architecture, how managed assemblies are packaged) and says what it knows and does not know. It does
 **not** install, patch or run SMAPI yet, and it requests **no permissions**.
 
-> Status (0.3.0): the core library (`:core`, 95 unit tests) is tested on a plain JDK. The Android shell (`:app`)
+> Status (0.4.0): the core library (`:core`, 96 unit tests) is tested on a plain JDK. The Android shell (`:app`)
 > compiled in CI and ran on one phone (Infinix X675, Android 11, arm64): see `docs/EVIDENCE.md`. Nothing here is
 > claimed to work with SMAPI.
+
+### New in 0.4.0
+
+- Host probes now also test the public Android APIs a plugin-style host would use: `createPackageContext`,
+  `DexClassLoader` over the game's APK (classes loaded without initialising), and the game's assets through
+  `PackageManager.getResourcesForApplication`. The report includes the signatures of the game's Java bootstrap classes.
+- The last uncaught Java exception is kept on disk and included in the next report (for experiments that run game code
+  inside this app).
 
 ### New in 0.3.0
 

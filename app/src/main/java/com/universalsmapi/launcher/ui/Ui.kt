@@ -216,7 +216,8 @@ private fun Footer() {
     Text(
         "No permissions are requested. APK access is tried through the path Android reports for the installed game; if that " +
             "is refused, the exact error is shown and you can pick the APK yourself. Host probes (only when you tap them) " +
-            "read the game's assemblies in memory and try to load three of its native libraries; nothing is written or changed.",
+            "read the game's assemblies in memory, try to load three of its native libraries, and test the public Android APIs " +
+            "a plugin-style host would use (class loading, assets); nothing is written or changed.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
