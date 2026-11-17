@@ -1,8 +1,8 @@
 name: Build
 
+# Manual only (Actions tab, Run workflow). If another pipeline already builds this repository, running this on every
+# push would just build the same commit twice. It needs no gradle-wrapper.jar: it installs Gradle itself.
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 jobs:

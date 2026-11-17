@@ -4,9 +4,15 @@ An Android app that finds an installed Stardew Valley, reads what the system and
 (version, architecture, how managed assemblies are packaged) and says what it knows and does not know. It does
 **not** install, patch or run SMAPI yet, and it requests **no permissions**.
 
-> Status (0.4.0): the core library (`:core`, 96 unit tests) is tested on a plain JDK. The Android shell (`:app`)
+> Status (0.4.1): the core library (`:core`, 96 unit tests) is tested on a plain JDK. The Android shell (`:app`)
 > compiled in CI and ran on one phone (Infinix X675, Android 11, arm64): see `docs/EVIDENCE.md`. Nothing here is
 > claimed to work with SMAPI.
+
+### New in 0.4.1
+
+- Build fix: the zip now includes `gradlew`, `gradlew.bat` and `gradle/wrapper/gradle-wrapper.properties`. Without them a
+  pipeline that runs `chmod +x gradlew` stops immediately ("gradlew: No such file or directory"), before any code is
+  compiled. No app code changed.
 
 ### New in 0.4.0
 
@@ -31,11 +37,15 @@ An Android app that finds an installed Stardew Valley, reads what the system and
 
 ## Build
 
-GitHub Actions (`.github/workflows/android.yml`) runs the core tests and builds the debug APK; download it from
-the run's artifacts. Locally (JDK 17, Android SDK 34):
+The project ships `gradlew`, `gradlew.bat` and `gradle/wrapper/gradle-wrapper.properties` (Gradle 8.9). The binary
+`gradle/wrapper/gradle-wrapper.jar` is not in the zip: a pipeline that fetches it (any 8.x wrapper jar can launch it)
+then runs `./gradlew assembleDebug`. JDK 17 and Android SDK 34 are required.
+
+Without such a pipeline, `.github/workflows/android.yml` (manual: Actions tab, Run workflow) installs Gradle itself,
+runs the core tests and builds the debug APK. Locally:
 
 ```sh
-gradle wrapper --gradle-version 8.9   # once, optional
+gradle wrapper --gradle-version 8.9   # once: regenerates the standard wrapper files and jar
 ./gradlew :core:test :app:assembleDebug
 ```
 
